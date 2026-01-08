@@ -10,6 +10,17 @@ from config_utils import load_config, save_config
 
 config_data = {}
 
+
+def get_selected_venv(show_warning=True):
+    selected_dir = folder_var.get()
+    selected_indices = venv_list.curselection()
+    if not selected_indices:
+        if show_warning:
+            messagebox.showinfo("已安裝的包", "請選擇一個虛擬環境")
+        return None, None
+    selected_venv = venv_list.get(selected_indices[0])
+    return selected_dir, selected_venv
+
 def ensure_profile(name):
     profiles = config_data.setdefault("profiles", {})
     if name not in profiles:
@@ -110,14 +121,12 @@ def create_venv_gui():
                 messagebox.showerror("創建虛擬環境", f"創建虛擬環境 '{venv_name}' 時出錯:\n{result}")
 
 def delete_venv_gui():
-    selected_dir = folder_var.get()
-    selected_indices = venv_list.curselection()  # 獲得選擇的索引列表
-    if not selected_indices:
-        messagebox.showinfo("已安裝的包", "請選擇一個虛擬環境")
-        return  # 如果未選擇虛擬環境，就不執行後面的程式碼
-    selected_venv = venv_list.get(venv_list.curselection())
+    selected_dir, selected_venv = get_selected_venv()
     if selected_dir and selected_venv:
-        confirm_delete = messagebox.askyesno("刪除虛擬環境", f"確定要刪除虛擬環境 '{selected_venv}' 嗎？")
+        confirm_delete = messagebox.askyesno(
+            "刪除虛擬環境",
+            f"確定要刪除虛擬環境 '{selected_venv}' 嗎？",
+        )
         if confirm_delete:
             try:
                 venv_path = os.path.join(selected_dir, selected_venv)
@@ -137,34 +146,38 @@ def update_venv_list():
     selected_dir = folder_var.get()
     venv_list.delete(0, tk.END)  # 清空虛擬環境列表
     if selected_dir:
-        venv_folders = [folder for folder in os.listdir(selected_dir) if os.path.isdir(os.path.join(selected_dir, folder))]
+        venv_folders = [
+            folder
+            for folder in os.listdir(selected_dir)
+            if os.path.isdir(os.path.join(selected_dir, folder))
+        ]
         venv_list.insert(tk.END, *venv_folders)
 
 def install_package_gui():
-    selected_dir = folder_var.get()
-    selected_indices = venv_list.curselection()  # 獲得選擇的索引列表
-    if not selected_indices:
-        messagebox.showinfo("已安裝的包", "請選擇一個虛擬環境")
-        return  # 如果未選擇虛擬環境，就不執行後面的程式碼
-    selected_venv = venv_list.get(venv_list.curselection())
+    selected_dir, selected_venv = get_selected_venv()
     if selected_dir and selected_venv:
-        package_name = simpledialog.askstring("安裝包", "請輸入要安裝的包的名稱 (可指定版本，例如 package==1.0.0):")
+        package_name = simpledialog.askstring(
+            "安裝包",
+            "請輸入要安裝的包的名稱 (可指定版本，例如 package==1.0.0):",
+        )
         if package_name:
             result = install_package(os.path.join(selected_dir, selected_venv), package_name)
             if result is True:
                 python_version = get_python_version(os.path.join(selected_dir, selected_venv))
                 installed_packages = get_installed_packages(os.path.join(selected_dir, selected_venv))
-                messagebox.showinfo("安裝包", f"已成功在虛擬環境 '{selected_venv}' 中安裝包 '{package_name}'\nPython 版本: {python_version}\n已安裝的包:\n{', '.join(installed_packages)}")
+                messagebox.showinfo(
+                    "安裝包",
+                    (
+                        f"已成功在虛擬環境 '{selected_venv}' 中安裝包 '{package_name}'\n"
+                        f"Python 版本: {python_version}\n"
+                        f"已安裝的包:\n{', '.join(installed_packages)}"
+                    ),
+                )
             else:
                 messagebox.showerror("安裝包", f"安裝包時出錯:\n{result}")
 
 def install_packages_from_file():
-    selected_dir = folder_var.get()
-    selected_indices = venv_list.curselection()  # 獲得選擇的索引列表
-    if not selected_indices:
-        messagebox.showinfo("已安裝的包", "請選擇一個虛擬環境")
-        return  # 如果未選擇虛擬環境，就不執行後面的程式碼
-    selected_venv = venv_list.get(venv_list.curselection())
+    selected_dir, selected_venv = get_selected_venv()
     if selected_dir and selected_venv:
         file_path = filedialog.askopenfilename(filetypes=[("Text Files", "*.txt")])
         if file_path:
@@ -187,7 +200,11 @@ def install_packages_from_file():
                 # 安裝完成後顯示訊息並等待用戶關閉窗口
                 completion_window = tk.Toplevel(root)
                 completion_window.title("安裝完成")
-                completion_message = f"已成功在虛擬環境 '{selected_venv}' 中安裝套件\nPython 版本: {python_version}\n已安裝的套件:\n{', '.join(installed_packages)}"
+                completion_message = (
+                    f"已成功在虛擬環境 '{selected_venv}' 中安裝套件\n"
+                    f"Python 版本: {python_version}\n"
+                    f"已安裝的套件:\n{', '.join(installed_packages)}"
+                )
                 tk.Label(completion_window, text=completion_message).pack()
                 completion_window.protocol("WM_DELETE_WINDOW", lambda: on_completion_window_close(completion_window))
                 completion_window.transient(root)
@@ -201,24 +218,13 @@ def on_completion_window_close(window):
 
 
 def show_python_version_gui():
-    selected_dir = folder_var.get()
-    selected_indices = venv_list.curselection()  # 獲得選擇的索引列表
-    if not selected_indices:
-        messagebox.showinfo("已安裝的包", "請選擇一個虛擬環境")
-        return  # 如果未選擇虛擬環境，就不執行後面的程式碼
-    selected_venv = venv_list.get(venv_list.curselection())
+    selected_dir, selected_venv = get_selected_venv()
     if selected_dir and selected_venv:
         python_version = get_python_version(os.path.join(selected_dir, selected_venv))
         messagebox.showinfo("Python 版本", f"虛擬環境 '{selected_venv}' 的 Python 版本:\n{python_version}")
 
 def show_installed_packages_gui():
-    selected_dir = folder_var.get()
-    selected_indices = venv_list.curselection()  # 獲得選擇的索引列表
-    if not selected_indices:
-        messagebox.showinfo("已安裝的包", "請選擇一個虛擬環境")
-        return  # 如果未選擇虛擬環境，就不執行後面的程式碼
-
-    selected_venv = venv_list.get(selected_indices[0])  # 獲得第一個選擇的虛擬環境
+    selected_dir, selected_venv = get_selected_venv()
     if selected_venv:
         installed_packages = get_installed_packages(os.path.join(selected_dir, selected_venv))
         if installed_packages:
@@ -234,13 +240,7 @@ def show_installed_packages_gui():
             messagebox.showinfo("已安裝的包", "虛擬環境中未安裝任何包")
             
 def run_activate_batch():
-    selected_dir = folder_var.get()
-    selected_indices = venv_list.curselection()  # 獲得選擇的索引列表
-    if not selected_indices:
-        messagebox.showinfo("已安裝的包", "請選擇一個虛擬環境")
-        return  # 如果未選擇虛擬環境，就不執行後面的程式碼
-    selected_venv = venv_list.get(venv_list.curselection())
-
+    selected_dir, selected_venv = get_selected_venv()
     if selected_dir and selected_venv:
         activate_path = os.path.join(selected_dir, selected_venv, 'Scripts', 'activate.bat')
         if os.path.exists(activate_path):
@@ -412,7 +412,6 @@ if __name__ == "__main__":
 
     def test_base_python():
         update_base_python_config()
-        mode = base_mode_var.get()
         cmd = get_base_python_command(config_data)
         cmd.append("--version")
         try:
