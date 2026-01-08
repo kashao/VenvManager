@@ -9,12 +9,16 @@ DEFAULT_CONFIG = {
         "default": {
             "venv_root": "",
             "activate_workdir": "",
+            "activate_workdirs": {},
         }
     },
     "base_python": {
         "mode": "py",
         "py_version": "3.11",
         "path": "",
+    },
+    "ui": {
+        "default_open_dir": "",
     },
 }
 

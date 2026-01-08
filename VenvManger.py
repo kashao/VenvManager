@@ -86,11 +86,13 @@ def get_installed_packages(venv_path):
         return [str(e)]
 
 def select_directory():
-    folder_selected = filedialog.askdirectory()
+    default_open_dir = config_data.get("ui", {}).get("default_open_dir") or None
+    folder_selected = filedialog.askdirectory(initialdir=default_open_dir)
     if folder_selected:
         folder_var.set(folder_selected)  # 設置虛擬環境資料夾變數
         active_profile = get_active_profile()
         active_profile["venv_root"] = folder_selected
+        config_data.setdefault("ui", {})["default_open_dir"] = folder_selected
         save_config(config_data)
         update_venv_list()
 
@@ -244,12 +246,16 @@ def run_activate_batch():
         if os.path.exists(activate_path):
             try:
                 active_profile = get_active_profile()
-                workdir = active_profile.get("activate_workdir", "")
+                workdir_map = active_profile.get("activate_workdirs", {})
+                workdir = workdir_map.get(selected_venv) or active_profile.get("activate_workdir", "")
                 if workdir:
                     inner = f'cd /d "{workdir}" && call "{activate_path}"'
                 else:
                     inner = f'call "{activate_path}"'
-                subprocess.Popen(["cmd.exe", "/K", inner])
+                subprocess.Popen(
+                    ["cmd.exe", "/K", inner],
+                    creationflags=subprocess.CREATE_NEW_CONSOLE,
+                )
                 messagebox.showinfo("執行 activate.bat", f"已成功在新的命令提示字元窗口中執行 '{activate_path}'")
             except Exception as e:
                 messagebox.showerror("執行 activate.bat", f"執行 '{activate_path}' 時出錯:\n{str(e)}")
@@ -310,18 +316,34 @@ if __name__ == "__main__":
     select_folder_button.pack(pady=2, padx=5)
 
     def set_activate_workdir():
-        selected_dir = filedialog.askdirectory()
+        selected_indices = venv_list.curselection()
+        if not selected_indices:
+            messagebox.showinfo("設定工作目錄", "請先選擇一個虛擬環境")
+            return
+        selected_venv = venv_list.get(selected_indices[0])
+        default_open_dir = config_data.get("ui", {}).get("default_open_dir") or None
+        selected_dir = filedialog.askdirectory(initialdir=default_open_dir)
         if selected_dir:
             active_profile = get_active_profile()
-            active_profile["activate_workdir"] = selected_dir
+            active_profile.setdefault("activate_workdirs", {})[selected_venv] = selected_dir
+            config_data.setdefault("ui", {})["default_open_dir"] = selected_dir
             save_config(config_data)
-            messagebox.showinfo("設定工作目錄", f"已更新 activate 工作目錄為:\n{selected_dir}")
+            messagebox.showinfo("設定工作目錄", f"已更新 '{selected_venv}' 的工作目錄為:\n{selected_dir}")
 
     def clear_activate_workdir():
+        selected_indices = venv_list.curselection()
+        if not selected_indices:
+            messagebox.showinfo("設定工作目錄", "請先選擇一個虛擬環境")
+            return
+        selected_venv = venv_list.get(selected_indices[0])
         active_profile = get_active_profile()
-        active_profile["activate_workdir"] = ""
-        save_config(config_data)
-        messagebox.showinfo("設定工作目錄", "已清除 activate 工作目錄設定。")
+        workdir_map = active_profile.setdefault("activate_workdirs", {})
+        if selected_venv in workdir_map:
+            del workdir_map[selected_venv]
+            save_config(config_data)
+            messagebox.showinfo("設定工作目錄", f"已清除 '{selected_venv}' 的工作目錄設定。")
+        else:
+            messagebox.showinfo("設定工作目錄", f"'{selected_venv}' 尚未設定工作目錄。")
 
     activate_workdir_button = ttk.Button(
         side_frame,
