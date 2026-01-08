@@ -3,69 +3,105 @@ import shutil
 import subprocess
 import tkinter as tk
 from tkinter import simpledialog, filedialog, messagebox, ttk
+
 from ttkbootstrap import Style
 
-def create_venv(venv_name):
+from config_utils import load_config, save_config
+
+config_data = {}
+
+def ensure_profile(name):
+    profiles = config_data.setdefault("profiles", {})
+    if name not in profiles:
+        profiles[name] = {"venv_root": "", "activate_workdir": ""}
+    return profiles[name]
+
+def get_active_profile():
+    profile_name = config_data.get("active_profile", "default")
+    return ensure_profile(profile_name)
+
+def get_base_python_command(cfg):
+    base_python = cfg.get("base_python", {})
+    if base_python.get("mode") == "path":
+        return [base_python.get("path", "")]
+    return ["py", f"-{base_python.get('py_version', '3.11')}"]
+
+def create_venv(cfg, venv_dir):
     try:
-        # 使用 subprocess 創建虛擬環境
-        subprocess.run(['python', '-m', 'venv', venv_name], shell=True)
+        cmd = get_base_python_command(cfg) + ["-m", "venv", venv_dir]
+        subprocess.run(cmd, check=True, capture_output=True, text=True)
         return True
+    except subprocess.CalledProcessError as e:
+        return e.stderr or e.stdout or str(e)
     except Exception as e:
         return str(e)
 
+def get_venv_python(venv_path):
+    return os.path.join(venv_path, "Scripts", "python.exe")
+
 def install_package(venv_name, package_name):
     try:
-        # 使用虛擬環境的 activate 腳本啟動虛擬環境
-        activate_script = os.path.join(venv_name, 'Scripts', 'activate')
-        cmd = f'call {activate_script} && pip install {package_name}'
-        result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        
-        if result.returncode == 0:
-            return True
-        else:
-            return result.stderr
+        venv_python = get_venv_python(venv_name)
+        result = subprocess.run(
+            [venv_python, "-m", "pip", "install", package_name],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return True if result.returncode == 0 else result.stderr
+    except subprocess.CalledProcessError as e:
+        return e.stderr or e.stdout or str(e)
     except Exception as e:
         return str(e)
 
 def get_python_version(venv_path):
     try:
-        activate_script = os.path.join(venv_path, 'Scripts', 'activate')
-        cmd = f'call {activate_script} && python --version'
-        result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode == 0:
-            return result.stdout.strip()
-        else:
-            return "無法獲取版本信息"
+        venv_python = get_venv_python(venv_path)
+        result = subprocess.run(
+            [venv_python, "--version"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        output = (result.stdout or result.stderr).strip()
+        return output if output else "無法獲取版本信息"
+    except subprocess.CalledProcessError as e:
+        return e.stderr or e.stdout or "無法獲取版本信息"
     except Exception as e:
         return str(e)
 
 def get_installed_packages(venv_path):
     try:
-        activate_script = os.path.join(venv_path, 'Scripts', 'activate')
-        cmd = f'call {activate_script} && pip freeze'
-        result = subprocess.run(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        if result.returncode == 0:
-            return result.stdout.strip().split('\n')
-        else:
-            return ["無法獲取已安裝的包"]
+        venv_python = get_venv_python(venv_path)
+        result = subprocess.run(
+            [venv_python, "-m", "pip", "freeze"],
+            check=True,
+            capture_output=True,
+            text=True,
+        )
+        return result.stdout.strip().split("\n") if result.stdout else []
+    except subprocess.CalledProcessError as e:
+        return [e.stderr or e.stdout or "無法獲取已安裝的包"]
     except Exception as e:
-        return str(e)
+        return [str(e)]
 
 def select_directory():
-    folder_selected = filedialog.askdirectory()
+    default_open_dir = config_data.get("ui", {}).get("default_open_dir") or None
+    folder_selected = filedialog.askdirectory(initialdir=default_open_dir)
     if folder_selected:
         folder_var.set(folder_selected)  # 設置虛擬環境資料夾變數
-        venv_list.delete(0, tk.END)  # 清空列表框
-        for entry in os.listdir(folder_selected):
-            if os.path.isdir(os.path.join(folder_selected, entry)):
-                venv_list.insert(tk.END, entry)
+        active_profile = get_active_profile()
+        active_profile["venv_root"] = folder_selected
+        config_data.setdefault("ui", {})["default_open_dir"] = folder_selected
+        save_config(config_data)
+        update_venv_list()
 
 def create_venv_gui():
     selected_dir = folder_var.get()
     if selected_dir:
         venv_name = simpledialog.askstring("創建虛擬環境", "請輸入虛擬環境的名稱:")
         if venv_name:
-            result = create_venv(os.path.join(selected_dir, venv_name))
+            result = create_venv(config_data, os.path.join(selected_dir, venv_name))
             if result is True:
                 messagebox.showinfo("創建虛擬環境", f"已成功創建虛擬環境 '{venv_name}'")
                 # 創建成功後自動更新虛擬環境列表
@@ -99,8 +135,8 @@ def delete_venv_gui():
 # 創建一個函數來更新虛擬環境列表
 def update_venv_list():
     selected_dir = folder_var.get()
+    venv_list.delete(0, tk.END)  # 清空虛擬環境列表
     if selected_dir:
-        venv_list.delete(0, tk.END)  # 清空虛擬環境列表
         venv_folders = [folder for folder in os.listdir(selected_dir) if os.path.isdir(os.path.join(selected_dir, folder))]
         venv_list.insert(tk.END, *venv_folders)
 
@@ -209,7 +245,17 @@ def run_activate_batch():
         activate_path = os.path.join(selected_dir, selected_venv, 'Scripts', 'activate.bat')
         if os.path.exists(activate_path):
             try:
-                subprocess.Popen(['start', 'cmd', '/k', activate_path], shell=True)
+                active_profile = get_active_profile()
+                workdir_map = active_profile.get("activate_workdirs", {})
+                workdir = workdir_map.get(selected_venv) or active_profile.get("activate_workdir", "")
+                if workdir:
+                    inner = f'cd /d "{workdir}" && call "{activate_path}"'
+                else:
+                    inner = f'call "{activate_path}"'
+                subprocess.Popen(
+                    ["cmd.exe", "/K", inner],
+                    creationflags=subprocess.CREATE_NEW_CONSOLE,
+                )
                 messagebox.showinfo("執行 activate.bat", f"已成功在新的命令提示字元窗口中執行 '{activate_path}'")
             except Exception as e:
                 messagebox.showerror("執行 activate.bat", f"執行 '{activate_path}' 時出錯:\n{str(e)}")
@@ -218,6 +264,8 @@ def run_activate_batch():
             
 if __name__ == "__main__":
 
+    config_data = load_config()
+
     root = tk.Tk()
     root.title("虛擬環境管理器")
 
@@ -225,6 +273,10 @@ if __name__ == "__main__":
     root.geometry("500x500")  # 設定視窗大小
 
     folder_var = tk.StringVar()  # 初始化 folder_var
+    profile_var = tk.StringVar(value=config_data.get("active_profile", "default"))
+    base_mode_var = tk.StringVar(value=config_data.get("base_python", {}).get("mode", "py"))
+    base_version_var = tk.StringVar(value=config_data.get("base_python", {}).get("py_version", "3.11"))
+    base_path_var = tk.StringVar(value=config_data.get("base_python", {}).get("path", ""))
     progress = ttk.Progressbar(root, mode="determinate")
     progress.pack(fill="x")
     # 使用 Frame 分隔按鈕和 Listbox
@@ -238,8 +290,146 @@ if __name__ == "__main__":
     button_width = 20
 
     # 創建按鈕並設置樣式
+    profile_label = ttk.Label(side_frame, text="Profile")
+    profile_label.pack(pady=(2, 0), padx=5)
+
+    profile_combo = ttk.Combobox(
+        side_frame,
+        textvariable=profile_var,
+        values=list(config_data.get("profiles", {}).keys()),
+        state="readonly",
+        width=button_width - 2,
+    )
+    profile_combo.pack(pady=2, padx=5)
+
+    def on_profile_change(event=None):
+        selected_profile = profile_var.get()
+        ensure_profile(selected_profile)
+        config_data["active_profile"] = selected_profile
+        folder_var.set(get_active_profile().get("venv_root", ""))
+        update_venv_list()
+        save_config(config_data)
+
+    profile_combo.bind("<<ComboboxSelected>>", on_profile_change)
+
     select_folder_button = ttk.Button(side_frame, text="選擇虛擬環境資料夾", command=select_directory, width=button_width, style="TButton")
     select_folder_button.pack(pady=2, padx=5)
+
+    def set_activate_workdir():
+        selected_indices = venv_list.curselection()
+        if not selected_indices:
+            messagebox.showinfo("設定工作目錄", "請先選擇一個虛擬環境")
+            return
+        selected_venv = venv_list.get(selected_indices[0])
+        default_open_dir = config_data.get("ui", {}).get("default_open_dir") or None
+        selected_dir = filedialog.askdirectory(initialdir=default_open_dir)
+        if selected_dir:
+            active_profile = get_active_profile()
+            active_profile.setdefault("activate_workdirs", {})[selected_venv] = selected_dir
+            config_data.setdefault("ui", {})["default_open_dir"] = selected_dir
+            save_config(config_data)
+            messagebox.showinfo("設定工作目錄", f"已更新 '{selected_venv}' 的工作目錄為:\n{selected_dir}")
+
+    def clear_activate_workdir():
+        selected_indices = venv_list.curselection()
+        if not selected_indices:
+            messagebox.showinfo("設定工作目錄", "請先選擇一個虛擬環境")
+            return
+        selected_venv = venv_list.get(selected_indices[0])
+        active_profile = get_active_profile()
+        workdir_map = active_profile.setdefault("activate_workdirs", {})
+        if selected_venv in workdir_map:
+            del workdir_map[selected_venv]
+            save_config(config_data)
+            messagebox.showinfo("設定工作目錄", f"已清除 '{selected_venv}' 的工作目錄設定。")
+        else:
+            messagebox.showinfo("設定工作目錄", f"'{selected_venv}' 尚未設定工作目錄。")
+
+    activate_workdir_button = ttk.Button(
+        side_frame,
+        text="設定 activate 工作目錄",
+        command=set_activate_workdir,
+        width=button_width,
+        style="TButton",
+    )
+    activate_workdir_button.pack(pady=2, padx=5)
+
+    clear_activate_workdir_button = ttk.Button(
+        side_frame,
+        text="清除 activate 工作目錄",
+        command=clear_activate_workdir,
+        width=button_width,
+        style="TButton",
+    )
+    clear_activate_workdir_button.pack(pady=2, padx=5)
+
+    base_frame = ttk.LabelFrame(side_frame, text="Base Python", padding=5)
+    base_frame.pack(pady=5, padx=5, fill="x")
+
+    base_mode_combo = ttk.Combobox(
+        base_frame,
+        textvariable=base_mode_var,
+        values=["py", "path"],
+        state="readonly",
+        width=button_width - 6,
+    )
+    base_mode_combo.pack(pady=2)
+
+    base_version_entry = ttk.Entry(base_frame, textvariable=base_version_var)
+    base_version_entry.pack(pady=2, fill="x")
+
+    base_path_entry = ttk.Entry(base_frame, textvariable=base_path_var)
+    base_path_entry.pack(pady=2, fill="x")
+
+    def browse_base_python():
+        file_path = filedialog.askopenfilename(filetypes=[("Python Executable", "python.exe")])
+        if file_path:
+            base_path_var.set(file_path)
+            update_base_python_config()
+
+    base_path_button = ttk.Button(base_frame, text="選擇 python.exe", command=browse_base_python, width=button_width - 6)
+    base_path_button.pack(pady=2)
+
+    def update_base_python_config():
+        config_data["base_python"] = {
+            "mode": base_mode_var.get(),
+            "py_version": base_version_var.get().strip() or "3.11",
+            "path": base_path_var.get().strip(),
+        }
+        save_config(config_data)
+        update_base_python_ui_state()
+
+    def update_base_python_ui_state():
+        mode = base_mode_var.get()
+        if mode == "py":
+            base_version_entry.configure(state="normal")
+            base_path_entry.configure(state="disabled")
+            base_path_button.configure(state="disabled")
+        else:
+            base_version_entry.configure(state="disabled")
+            base_path_entry.configure(state="normal")
+            base_path_button.configure(state="normal")
+
+    def test_base_python():
+        update_base_python_config()
+        mode = base_mode_var.get()
+        cmd = get_base_python_command(config_data)
+        cmd.append("--version")
+        try:
+            result = subprocess.run(cmd, check=True, capture_output=True, text=True)
+            output = (result.stdout or result.stderr).strip()
+            messagebox.showinfo("Base Python 測試", output if output else "無法取得版本資訊")
+        except subprocess.CalledProcessError as e:
+            messagebox.showerror("Base Python 測試", e.stderr or e.stdout or str(e))
+        except Exception as e:
+            messagebox.showerror("Base Python 測試", str(e))
+
+    base_test_button = ttk.Button(base_frame, text="Test --version", command=test_base_python, width=button_width - 6)
+    base_test_button.pack(pady=2)
+
+    base_mode_combo.bind("<<ComboboxSelected>>", lambda event: update_base_python_config())
+    base_version_entry.bind("<FocusOut>", lambda event: update_base_python_config())
+    base_path_entry.bind("<FocusOut>", lambda event: update_base_python_config())
 
     create_button = ttk.Button(side_frame, text="創建虛擬環境", command=create_venv_gui, width=button_width, style="TButton")
     create_button.pack(pady=2, padx=5)
@@ -268,5 +458,9 @@ if __name__ == "__main__":
     # 在 list_frame 中創建 venv_list
     venv_list = tk.Listbox(list_frame)
     venv_list.pack(fill='both', expand=True, padx=5, pady=5)
+
+    folder_var.set(get_active_profile().get("venv_root", ""))
+    update_base_python_ui_state()
+    update_venv_list()
 
     root.mainloop()
