@@ -1,12 +1,12 @@
-# VenvManger
+# VenvManager
 Python 3 虛擬環境管理器
 
 這個虛擬環境管理器是一個用 Python 和 tkinter 構建的圖形用戶界面（GUI）應用程式，它可以幫助你輕鬆管理虛擬環境與套件，包括建立/刪除虛擬環境、安裝套件、檢視已安裝套件與執行啟用腳本。
 
 ---
 
-# VenvManger (English)
-VenvManger is a Python + tkinter GUI app for managing virtual environments and packages. You can create or remove environments, install packages, inspect installed packages, and launch the activation script.
+# VenvManager (English)
+VenvManager is a Python + tkinter GUI app for managing virtual environments and packages. You can create or remove environments, install packages, inspect installed packages, and launch the activation script.
 
 ## 功能 (Features)
 
@@ -43,7 +43,7 @@ VenvManger is a Python + tkinter GUI app for managing virtual environments and p
 2. 執行虛擬環境管理器：
 
    ```bash
-   python VenvManger.py
+   python VenvManager.py
    ```
 
 ## 使用 (Usage)
