@@ -64,9 +64,9 @@ def get_python_version(venv_path):
             text=True,
         )
         output = (result.stdout or result.stderr).strip()
-        return output if output else "無法獲取版本信息"
+        return output if output else "無法獲取版本訊息"
     except subprocess.CalledProcessError as e:
-        return e.stderr or e.stdout or "無法獲取版本信息"
+        return e.stderr or e.stdout or "無法獲取版本訊息"
     except Exception as e:
         return str(e)
 
@@ -273,7 +273,7 @@ if __name__ == "__main__":
     root.title("虛擬環境管理器")
 
     style = Style(theme="flatly")  # 使用 flatly 主題
-    root.geometry("500x500")  # 設定視窗大小
+    root.geometry("500x700")  # 設定視窗大小
 
     folder_var = tk.StringVar()  # 初始化 folder_var
     profile_var = tk.StringVar(value=config_data.get("active_profile", "default"))
