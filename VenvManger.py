@@ -235,30 +235,33 @@ def show_installed_packages_gui():
             
 def run_activate_batch():
     selected_dir = folder_var.get()
-    selected_indices = venv_list.curselection()  # 獲得選擇的索引列表
+    selected_indices = venv_list.curselection()
     if not selected_indices:
         messagebox.showinfo("已安裝的包", "請選擇一個虛擬環境")
-        return  # 如果未選擇虛擬環境，就不執行後面的程式碼
-    selected_venv = venv_list.get(venv_list.curselection())
-
+        return
+    # FIX: curselection() returns a tuple, use the first index
+    selected_venv = venv_list.get(selected_indices[0])
     if selected_dir and selected_venv:
-        activate_path = os.path.join(selected_dir, selected_venv, 'Scripts', 'activate.bat')
+        activate_path = os.path.join(selected_dir, selected_venv, "Scripts", "activate.bat")
         if os.path.exists(activate_path):
             try:
+                # Get workdir from YAML/profile (adjust to your actual config getter)
                 active_profile = get_active_profile()
                 workdir_map = active_profile.get("activate_workdirs", {})
                 workdir = workdir_map.get(selected_venv) or active_profile.get("activate_workdir", "")
                 if workdir:
+                    # IMPORTANT: cd /d (with space) + call (for .bat)
                     inner = f'cd /d "{workdir}" && call "{activate_path}"'
                 else:
                     inner = f'call "{activate_path}"'
+                # Keep your original approach: start cmd /k ...
                 subprocess.Popen(
-                    ["cmd.exe", "/K", inner],
-                    creationflags=subprocess.CREATE_NEW_CONSOLE,
+                    f'start cmd /k "{inner}"',
+                    shell=True
                 )
-                messagebox.showinfo("執行 activate.bat", f"已成功在新的命令提示字元窗口中執行 '{activate_path}'")
+                messagebox.showinfo("執行 activate.bat", f"已成功在新的命令提示字元窗口中執行:\n{activate_path}")
             except Exception as e:
-                messagebox.showerror("執行 activate.bat", f"執行 '{activate_path}' 時出錯:\n{str(e)}")
+                messagebox.showerror("執行 activate.bat", f"執行時出錯:\n{str(e)}")
         else:
             messagebox.showinfo("執行 activate.bat", f"'{activate_path}' 不存在")
             
