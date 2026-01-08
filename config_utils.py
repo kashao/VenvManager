@@ -20,10 +20,8 @@ DEFAULT_CONFIG = {
 
 
 def get_config_path():
-    appdata = os.environ.get("APPDATA") or os.path.expanduser("~")
-    config_dir = os.path.join(appdata, "VenvManager")
-    os.makedirs(config_dir, exist_ok=True)
-    return os.path.join(config_dir, "config.yaml")
+    base_dir = os.path.dirname(os.path.abspath(__file__))
+    return os.path.join(base_dir, "config.yaml")
 
 
 def _merge_defaults(data, defaults):
