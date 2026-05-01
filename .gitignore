@@ -25,6 +25,9 @@ share/python-wheels/
 .installed.cfg
 *.egg
 MANIFEST
+*_requirements_python_*.txt
+config.json
+config.local.json
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

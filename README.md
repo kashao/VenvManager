@@ -1,58 +1,152 @@
 # VenvManager
-Python 3 虛擬環境管理器
 
-這個虛擬環境管理器是一個用 Python 和 tkinter 構建的圖形用戶界面（GUI）應用程式，它可以幫助你輕鬆管理虛擬環境與套件，包括建立/刪除虛擬環境、安裝套件、檢視已安裝套件與執行啟用腳本。
+VenvManager 是一個 Windows 友善的 Python 虛擬環境管理工具。它使用 tkinter、ttk 與 ttkbootstrap 製作 GUI，目標是保持簡單、容易維護，並能用 PyInstaller 打包成單一 Windows exe。
 
----
+![VenvManager application screenshot](Application.png)
 
-# VenvManager (English)
-VenvManager is a Python + tkinter GUI app for managing virtual environments and packages. You can create or remove environments, install packages, inspect installed packages, and launch the activation script.
+## 功能特色
 
-## 功能 (Features)
+- 建立、刪除、搜尋與列出虛擬環境
+- 設定 venv 存放資料夾
+- 自動掃描 Base Python，支援 Python Launcher 與完整 `python.exe` 路徑
+- 建立 venv 前檢查 Base Python 是否可用
+- 為每個 venv 設定對應的工作資料夾
+- 另開 PowerShell 終端機，切到工作資料夾並啟用 venv
+- 複製 PowerShell 啟用指令
+- 安裝單一 pip 套件
+- 從 requirements 檔案批次安裝套件
+- 顯示已安裝套件，並輸出 requirements 快照
 
-- 選擇虛擬環境資料夾
-- 創建新的虛擬環境
-- 刪除現有的虛擬環境
-- 安裝單個套件
-- 從文件中安裝多個套件
-- 顯示虛擬環境中的 Python 版本
-- 顯示虛擬環境中已安裝的套件
-- 執行虛擬環境的 `activate.bat`
-- 設定 Base Python 來源（`py -<version>` 或 `python.exe` 路徑）
-- 針對不同 Profile 儲存獨立的虛擬環境根目錄與工作目錄設定
+## 使用技術
 
-- Select a venv root folder
-- Create new virtual environments
-- Delete existing environments
-- Install packages (single or batch from file)
-- Show Python version and installed packages
-- Run `activate.bat`
-- Configure Base Python source (`py -<version>` or `python.exe` path)
-- Save per-profile venv roots and working directory preferences
+- Python 3.11+
+- tkinter / ttk
+- ttkbootstrap
+- PyInstaller onefile
+- GitHub Actions
 
-## 安裝 (Installation)
+## 專案結構
 
-首先，確保你已經安裝了 Python。接著，使用以下步驟安裝虛擬環境管理器：
+```text
+VenvManager/
+├─ src/
+│  └─ venv_manager/
+│     ├─ __main__.py
+│     ├─ app.py
+│     ├─ config.py
+│     ├─ paths.py
+│     ├─ venv_service.py
+│     ├─ ui/
+│     └─ assets/
+├─ tests/
+├─ scripts/
+├─ .github/workflows/
+├─ pyproject.toml
+├─ requirements.txt
+├─ requirements-dev.txt
+├─ README.md
+└─ LICENSE
+```
 
-1. 安裝所需的依賴：
+## 設定檔位置
 
-   ```bash
-   pip install -r requirements.txt
-   ```
+設定檔不會放在 exe 旁邊，也不會放在 PyInstaller onefile 的暫存解壓縮目錄。Windows 會儲存在：
 
-2. 執行虛擬環境管理器：
+```text
+%APPDATA%\VenvManager\config.json
+```
 
-   ```bash
-   python VenvManager.py
-   ```
+設定檔會保存：
 
-## 使用 (Usage)
+- venv 存放資料夾
+- Base Python 選擇
+- ttkbootstrap theme
+- 每個 venv 對應的工作資料夾
+- 上次開啟的資料夾
 
-在虛擬環境管理器中，你可以進行以下操作：
+這樣即使 exe 更新、移動或重新打包，使用者設定仍會留在自己的 Windows 使用者資料夾。
 
-- 點擊 "選擇虛擬環境資料夾" 按鈕以選擇虛擬環境的根目錄。
-- 使用其他功能按鈕來執行相應的操作。
+## Requirements 快照
 
-## 截圖 (Screenshot)
+點選「套件清單」時，VenvManager 會讀取該 venv 的 `pip freeze`，並在目前設定的 venv 存放資料夾輸出：
 
-![Application](Application.png)
+```text
+(venv_name)_requirements_python_Python 3.11.3.txt
+```
+
+例如 venv 根目錄設定為 `<venv_root>`，選取 `demo` 時可能產生：
+
+```text
+<venv_root>\demo_requirements_python_Python 3.11.3.txt
+```
+
+## 本機開發
+
+```powershell
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+python -m pip install -r requirements-dev.txt
+python -m pip install -e .
+```
+
+## 執行
+
+```powershell
+python -m venv_manager
+```
+
+也可以使用 console script：
+
+```powershell
+venv-manager
+```
+
+## 檢查
+
+```powershell
+ruff check .
+pytest
+```
+
+## 本機打包 onefile exe
+
+```powershell
+powershell -ExecutionPolicy Bypass -File scripts/build_exe.ps1
+```
+
+輸出檔案：
+
+```text
+dist/VenvManager.exe
+```
+
+`scripts/build_exe.ps1` 會使用 PyInstaller onefile 與 windowed 模式。如果 `src/venv_manager/assets/app.ico` 存在，會自動加入 icon；如果 icon 不存在，打包不會失敗。
+
+## GitHub Actions
+
+Windows exe 會在以下情境自動建立：
+
+- push 版本 tag，例如 `v0.1.0`
+- 手動執行 `workflow_dispatch`
+
+流程完成後，在 GitHub Actions run 的 Artifacts 區塊下載：
+
+```text
+VenvManager-windows-onefile
+```
+
+裡面會包含：
+
+```text
+VenvManager.exe
+```
+
+## Onefile exe 限制
+
+`VenvManager.exe` 可以在沒有安裝 Python 的電腦上啟動 GUI，但建立新的 venv 仍需要可用的 Base Python。使用者可以安裝 Python，或在設定中選擇偵測到的 Python / 指定完整 `python.exe` 路徑。
+
+## License
+
+MIT License
