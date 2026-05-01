@@ -1,0 +1,101 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+    tags:
+      - "v*.*.*"
+  pull_request:
+    branches:
+      - main
+      - dev
+  workflow_dispatch:
+
+jobs:
+  checks:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e .
+
+      - name: Lint
+        run: ruff check .
+
+      - name: Test
+        run: pytest
+
+  build:
+    needs: checks
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Require main release source
+        if: startsWith(github.ref, 'refs/tags/v') || github.event_name == 'workflow_dispatch'
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            if ("${{ github.ref }}" -ne "refs/heads/main") {
+              throw "Manual releases must be run from the main branch."
+            }
+            exit 0
+          }
+
+          git fetch --no-tags origin "+refs/heads/main:refs/remotes/origin/main"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Could not fetch origin/main."
+          }
+
+          git merge-base --is-ancestor HEAD "refs/remotes/origin/main"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Release tags must point to commits that are reachable from main."
+          }
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+          python -m pip install -e .
+
+      - name: Build onefile exe
+        shell: pwsh
+        run: powershell -ExecutionPolicy Bypass -File scripts/build_exe.ps1
+
+      - name: Verify exe
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "dist/VenvManager.exe")) {
+            throw "dist/VenvManager.exe was not created."
+          }
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: VenvManager-windows-onefile
+          path: dist/VenvManager.exe
