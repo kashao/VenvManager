@@ -26,9 +26,12 @@ class NewVenvDialog(ttk.Toplevel):
         entry = ttk.Entry(container, textvariable=self.name_var, width=34)
         entry.grid(row=1, column=0, columnspan=2, sticky="ew", pady=(SMALL_PAD, PAD))
 
-        ttk.Button(container, text="取消", command=self._cancel, bootstyle="secondary-outline").grid(
-            row=2, column=0, sticky="e", padx=(0, SMALL_PAD)
-        )
+        ttk.Button(
+            container,
+            text="取消",
+            command=self._cancel,
+            bootstyle="secondary-outline",
+        ).grid(row=2, column=0, sticky="e", padx=(0, SMALL_PAD))
         ttk.Button(container, text="建立", command=self._submit, bootstyle="primary").grid(
             row=2, column=1, sticky="e"
         )
@@ -78,9 +81,12 @@ class PackageInputDialog(ttk.Toplevel):
             bootstyle="secondary",
         ).grid(row=2, column=0, columnspan=2, sticky="w", pady=(0, PAD))
 
-        ttk.Button(container, text="取消", command=self._cancel, bootstyle="secondary-outline").grid(
-            row=3, column=0, sticky="e", padx=(0, SMALL_PAD)
-        )
+        ttk.Button(
+            container,
+            text="取消",
+            command=self._cancel,
+            bootstyle="secondary-outline",
+        ).grid(row=3, column=0, sticky="e", padx=(0, SMALL_PAD))
         ttk.Button(container, text="安裝", command=self._submit, bootstyle="primary").grid(
             row=3, column=1, sticky="e"
         )
@@ -195,9 +201,12 @@ class SettingsDialog(ttk.Toplevel):
         ttk.Entry(root_row, textvariable=self.venv_root_var, width=64).grid(
             row=0, column=0, sticky="ew", padx=(0, SMALL_PAD)
         )
-        ttk.Button(root_row, text="瀏覽", command=self._browse_root, bootstyle="secondary").grid(
-            row=0, column=1
-        )
+        ttk.Button(
+            root_row,
+            text="瀏覽",
+            command=self._browse_root,
+            bootstyle="secondary",
+        ).grid(row=0, column=1)
 
         ttk.Label(container, text="Base Python").grid(row=2, column=0, sticky="w")
         python_row = ttk.Frame(container)
@@ -235,10 +244,18 @@ class SettingsDialog(ttk.Toplevel):
 
         actions = ttk.Frame(container)
         actions.grid(row=5, column=0, sticky="e")
-        ttk.Button(actions, text="取消", command=self._cancel, bootstyle="secondary-outline").pack(
-            side="left", padx=(0, SMALL_PAD)
-        )
-        ttk.Button(actions, text="儲存", command=self._submit, bootstyle="primary").pack(side="left")
+        ttk.Button(
+            actions,
+            text="取消",
+            command=self._cancel,
+            bootstyle="secondary-outline",
+        ).pack(side="left", padx=(0, SMALL_PAD))
+        ttk.Button(
+            actions,
+            text="儲存",
+            command=self._submit,
+            bootstyle="primary",
+        ).pack(side="left")
 
         self.bind("<Escape>", lambda _event: self._cancel())
         self.transient(master)
@@ -253,7 +270,10 @@ class SettingsDialog(ttk.Toplevel):
         return command
 
     def _browse_root(self) -> None:
-        selected = filedialog.askdirectory(parent=self, initialdir=self.venv_root_var.get() or None)
+        selected = filedialog.askdirectory(
+            parent=self,
+            initialdir=self.venv_root_var.get() or None,
+        )
         if selected:
             self.venv_root_var.set(selected)
 
