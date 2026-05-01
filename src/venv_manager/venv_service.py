@@ -8,9 +8,7 @@ import sys
 from dataclasses import dataclass
 from pathlib import Path
 
-BASE_PYTHON_ERROR = (
-    "找不到可用的 Base Python，請先安裝 Python，或在設定中指定 python.exe 路徑。"
-)
+BASE_PYTHON_ERROR = "找不到可用的 Base Python，請先安裝 Python，或在設定中指定 python.exe 路徑。"
 
 
 @dataclass(frozen=True, slots=True)

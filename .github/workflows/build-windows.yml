@@ -13,6 +13,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Require main release source
+        shell: pwsh
+        run: |
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            if ("${{ github.ref }}" -ne "refs/heads/main") {
+              throw "Manual releases must be run from the main branch."
+            }
+            exit 0
+          }
+
+          git fetch origin main:refs/remotes/origin/main --prune
+          git merge-base --is-ancestor "${{ github.sha }}" "refs/remotes/origin/main"
+          if ($LASTEXITCODE -ne 0) {
+            throw "Release tags must point to commits that are reachable from main."
+          }
 
       - name: Set up Python
         uses: actions/setup-python@v5

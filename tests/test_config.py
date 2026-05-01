@@ -1,11 +1,6 @@
 from pathlib import Path
 
-from venv_manager.config import (
-    AppConfig,
-    ConfigStore,
-    DEFAULT_BASE_PYTHON,
-    DEFAULT_THEME,
-)
+from venv_manager.config import DEFAULT_BASE_PYTHON, DEFAULT_THEME, AppConfig, ConfigStore
 
 
 def test_load_creates_default_config(tmp_path: Path) -> None:
@@ -28,9 +23,7 @@ def test_save_and_load_config(tmp_path: Path) -> None:
         venv_root=str(tmp_path / "venvs"),
         base_python="py -3.11",
         theme="darkly",
-        venv_workdirs={
-            str(tmp_path / "venvs" / "demo"): str(tmp_path / "projects" / "demo")
-        },
+        venv_workdirs={str(tmp_path / "venvs" / "demo"): str(tmp_path / "projects" / "demo")},
         last_open_dir=str(tmp_path / "projects"),
     )
 
